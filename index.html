@@ -1,0 +1,1431 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<title>Un grimoire</title>
+<style>
+  :root {
+    --nuit:      #16100b;
+    --cuir:      #3b1f16;
+    --cuir-clair:#5c3323;
+    --parchemin: #efe1c2;
+    --parchemin2:#e3d0aa;
+    --encre:     #40301c;
+    --encre-pale:#7a6647;
+    --or:        #c2984a;
+    --or-clair:  #e6c880;
+    --tour: 1.05s;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body { height: 100%; overflow: hidden; }
+
+  body {
+    background:
+      radial-gradient(115% 85% at 50% 42%, #2a1b12 0%, var(--nuit) 62%, #090605 100%);
+    color: var(--encre);
+    font-family: 'Iowan Old Style', Palatino, 'Palatino Linotype', Georgia, serif;
+    display: flex; align-items: center; justify-content: center;
+    padding: clamp(.6rem, 2.6vw, 2rem);
+  }
+
+  /* ═════════════════ le livre ═════════════════ */
+  #livre {
+    position: relative;
+    width:  min(94vw, 44rem);
+    height: min(90svh, 60rem);
+    perspective: 2400px;
+    perspective-origin: 58% 50%;
+  }
+
+  /* la tranche du livre, sous la pile de pages */
+  #livre::before {
+    content: ''; position: absolute; inset: -.5% -.6% -1.1% -1.4%;
+    background: linear-gradient(90deg, #1b0f0a 0 1.4%, #6b4a2c 1.4% 2.4%, #2b1a10 2.4% 3.2%, transparent 3.2%);
+    border-radius: 5px 3px 3px 5px;
+    box-shadow: 0 44px 90px -26px rgba(0,0,0,.92);
+  }
+
+  .page {
+    position: absolute; inset: 0;
+    transform-origin: left center;
+    transform-style: preserve-3d;
+    transition: transform var(--tour) cubic-bezier(.42,.02,.24,1);
+    will-change: transform;
+  }
+  .page.tournee { transform: rotateY(-179.5deg); }
+  .page.loin    { visibility: hidden; }
+
+  .recto, .verso {
+    position: absolute; inset: 0;
+    backface-visibility: hidden; -webkit-backface-visibility: hidden;
+    border-radius: 3px 8px 8px 3px;
+    overflow: hidden;
+  }
+  .verso { transform: rotateY(180deg); border-radius: 8px 3px 3px 8px; }
+
+  /* ── la matière : parchemin ── */
+  .recto, .verso {
+    background:
+      radial-gradient(88% 62% at 32% 18%, rgba(255,252,240,.72), transparent 62%),
+      radial-gradient(70% 55% at 82% 88%, rgba(160,120,64,.20), transparent 60%),
+      linear-gradient(158deg, var(--parchemin) 0%, var(--parchemin2) 58%, #d6c096 100%);
+    box-shadow: inset 0 0 68px rgba(120,84,40,.34), 0 16px 40px -18px rgba(0,0,0,.75);
+  }
+  /* l'ombre de la reliure, côté gauche */
+  .recto::before {
+    content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 12%;
+    background: linear-gradient(90deg, rgba(74,44,18,.44), rgba(74,44,18,.07) 55%, transparent);
+    pointer-events: none; z-index: 3;
+  }
+  .verso::before {
+    content: ''; position: absolute; right: 0; top: 0; bottom: 0; width: 12%;
+    background: linear-gradient(270deg, rgba(74,44,18,.44), transparent);
+    pointer-events: none;
+  }
+  .verso .filigrane {
+    position: absolute; inset: 0; display: flex;
+    align-items: center; justify-content: center;
+    font-size: 5rem; color: rgba(120,86,42,.14);
+  }
+
+  /* ═════════════════ une page de souvenir ═════════════════ */
+  .recto {
+    display: flex; flex-direction: column;
+    padding: clamp(1.5rem, 4.4vw, 2.9rem);
+    padding-left: clamp(2.1rem, 6.4vw, 4rem);
+    /* de quoi ne jamais coller au numero de page, en bas a droite */
+    padding-bottom: clamp(2.4rem, 6vw, 3.5rem);
+  }
+
+  /* La photo prend TOUT l'espace restant une fois le texte place (flex: 1).
+     Elle grandit donc au maximum sur les pages a message court, et retrecit
+     juste ce qu'il faut sur les pages a message long — sans jamais rogner
+     l'image ni obliger a faire defiler le texte. */
+  .photo {
+    position: relative;
+    flex: 1 1 auto; min-height: 0;
+    display: flex; align-items: center; justify-content: center;
+    padding-bottom: .9rem;
+  }
+
+  /* n'apparait que si le navigateur a refuse le son au demarrage */
+  .son {
+    position: absolute; left: 50%; bottom: 1.6rem; transform: translateX(-50%);
+    z-index: 5; cursor: pointer; white-space: nowrap;
+    padding: .52rem 1.05rem; border-radius: 999px;
+    background: rgba(12,7,4,.8); border: 1px solid rgba(194,152,74,.55);
+    color: var(--or-clair); backdrop-filter: blur(8px);
+    font-family: -apple-system, 'Helvetica Neue', sans-serif;
+    font-size: .74rem; letter-spacing: .06em;
+    animation: respire 2.8s ease-in-out infinite;
+  }
+  .son[hidden] { display: none; }
+  /* seule la taille du texte change par palier ; la photo suit toute seule */
+  .page.texte-long .legende      { font-size: clamp(.98rem, 3.6vw, 1.32rem); }
+  .page.texte-tres-long .legende { font-size: clamp(.88rem, 3.05vw, 1.1rem); line-height: 1.5; }
+  .photo img, .photo video {
+    max-width: 100%; max-height: 100%;
+    width: auto; height: auto; object-fit: contain;
+    background: #fdfaf1;
+    border: clamp(.32rem, 1.1vw, .6rem) solid #fdfaf1;
+    border-bottom-width: clamp(.9rem, 3vw, 1.7rem);
+    box-shadow: 0 12px 26px -10px rgba(50,28,10,.72), 0 1px 0 rgba(255,255,255,.5);
+  }
+  .photo .penche-a { transform: rotate(-1.25deg); }
+  .photo .penche-b { transform: rotate(1.1deg); }
+
+  /* ── la légende, écrite à la main ── */
+  .legende {
+    flex: 0 0 auto;
+    font-family: 'Bradley Hand', 'Segoe Print', 'Snell Roundhand', 'Apple Chancery', cursive;
+    font-size: clamp(1.12rem, 4.4vw, 1.62rem);
+    line-height: 1.42; color: var(--encre);
+    flex: 0 0 auto;
+    text-align: center; padding: .35rem .2rem 0;
+    max-height: 66%; overflow-y: auto;
+    outline: none; border-radius: 4px;
+    white-space: pre-wrap; overflow-wrap: break-word;
+    transition: background .25s ease, box-shadow .25s ease, font-size .35s ease, max-height .35s ease;
+  }
+  .legende:empty::before {
+    content: attr(data-vide);
+    color: rgba(122,102,71,.62); font-style: italic;
+  }
+  [contenteditable].legende { cursor: text; }
+  [contenteditable].legende:hover { background: rgba(255,255,255,.42); }
+  [contenteditable].legende:focus {
+    background: rgba(255,255,255,.72);
+    box-shadow: 0 0 0 2px rgba(194,152,74,.55);
+  }
+
+  .folio {
+    position: absolute; bottom: .85rem; right: 1.5rem;
+    font-size: .78rem; color: var(--encre-pale); letter-spacing: .12em;
+  }
+
+  /* ═════════════════ la couverture ═════════════════ */
+  .page.couverture .recto {
+    background:
+      radial-gradient(78% 60% at 50% 34%, var(--cuir-clair), var(--cuir) 62%, #24110b 100%);
+    box-shadow: inset 0 0 90px rgba(0,0,0,.6), 0 18px 50px -16px rgba(0,0,0,.85);
+    align-items: center; justify-content: center; text-align: center;
+    padding: clamp(2rem, 7vw, 3.4rem);
+  }
+  .page.couverture .recto::before {
+    background: linear-gradient(90deg, rgba(0,0,0,.5), rgba(0,0,0,.12) 58%, transparent);
+  }
+  /* double filet doré, gravé */
+  .cadre-or {
+    position: absolute; inset: clamp(.75rem, 3.1vw, 1.5rem);
+    border: 1px solid rgba(194,152,74,.62); border-radius: 2px;
+  }
+  .cadre-or::after {
+    content: ''; position: absolute; inset: clamp(.28rem, 1.1vw, .5rem);
+    border: 2px solid rgba(194,152,74,.34); border-radius: 1px;
+  }
+
+  .ornement { font-size: 1.5rem; color: var(--or); opacity: .85; }
+
+  .sur-titre {
+    font-family: -apple-system, 'Helvetica Neue', sans-serif;
+    font-size: clamp(.58rem, 2.3vw, .72rem);
+    letter-spacing: .46em; text-transform: uppercase;
+    color: var(--or); margin: 1.5rem 0 .1rem .46em;
+  }
+  .prenom {
+    font-size: clamp(3.4rem, 17vw, 7rem);
+    font-weight: 400; line-height: 1; letter-spacing: -.015em;
+    margin: .1em 0;
+    color: var(--or-clair);
+    text-shadow: 0 1px 0 #7d5a22, 0 2px 1px rgba(0,0,0,.6), 0 0 34px rgba(230,200,128,.34);
+  }
+  .prenom span { display: inline-block; opacity: 0; animation: lettre 1.3s cubic-bezier(.2,.7,.3,1) forwards; }
+
+  .filet {
+    width: clamp(5rem, 26vw, 9rem); height: 1px; margin: 1.5rem 0;
+    background: linear-gradient(90deg, transparent, var(--or), transparent);
+  }
+  .intro {
+    max-width: 26rem; color: rgba(239,225,194,.66);
+    font-style: italic; font-size: clamp(.94rem, 3.4vw, 1.06rem); line-height: 1.65;
+  }
+  .invite {
+    margin-top: 2.4rem; color: var(--or);
+    font-family: -apple-system, 'Helvetica Neue', sans-serif;
+    font-size: .68rem; letter-spacing: .32em; text-transform: uppercase;
+    animation: respire 2.8s ease-in-out infinite;
+  }
+
+  /* ═════════════════ la dernière page ═════════════════ */
+  .page.finale .recto {
+    align-items: center; justify-content: center; text-align: center;
+    gap: .3rem;
+  }
+  .page.finale h2 {
+    font-size: clamp(1.7rem, 7vw, 2.9rem); font-weight: 400; line-height: 1.2;
+    color: var(--encre); max-width: 14em;
+  }
+  .page.finale .mot-fin {
+    font-family: 'Bradley Hand', 'Segoe Print', 'Snell Roundhand', 'Apple Chancery', cursive;
+    font-size: clamp(1.05rem, 4.2vw, 1.4rem); line-height: 1.55;
+    max-width: 22em; color: var(--encre); outline: none; border-radius: 4px;
+    padding: .3rem .5rem; white-space: pre-wrap; overflow-wrap: break-word;
+    max-height: 46%; overflow-y: auto;
+    transition: background .25s ease, box-shadow .25s ease;
+  }
+  .page.finale .signature {
+    margin-top: 1.9rem; color: var(--encre-pale);
+    font-family: -apple-system, 'Helvetica Neue', sans-serif;
+    font-size: .72rem; letter-spacing: .3em; text-transform: uppercase;
+    outline: none; border-radius: 4px; padding: .2rem .4rem;
+  }
+  [contenteditable].mot-fin:hover, [contenteditable].signature:hover,
+  .page.finale [contenteditable] h2:hover { background: rgba(255,255,255,.42); }
+  [contenteditable].mot-fin:focus, [contenteditable].signature:focus {
+    background: rgba(255,255,255,.72); box-shadow: 0 0 0 2px rgba(194,152,74,.55);
+  }
+
+  /* ═════════════════ navigation ═════════════════ */
+  .zone {
+    position: absolute; top: 0; bottom: 0; width: 17%;
+    z-index: 900; cursor: pointer; border: 0; background: transparent;
+  }
+  .zone.prec { left: 0; }
+  .zone.suiv { right: 0; }
+
+  #barre {
+    position: fixed; left: 50%; transform: translateX(-50%);
+    bottom: clamp(.35rem, 1.6vh, 1rem); z-index: 950;
+    display: flex; align-items: center; gap: .8rem;
+    padding: .34rem .5rem; border-radius: 999px;
+    background: rgba(12,7,4,.62); backdrop-filter: blur(12px);
+    border: 1px solid rgba(194,152,74,.3);
+  }
+  #barre button {
+    width: 2.1rem; height: 2.1rem; border-radius: 50%; cursor: pointer;
+    background: transparent; border: 1px solid rgba(194,152,74,.4);
+    color: var(--or); font-size: 1rem; line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+    transition: background .2s ease, transform .2s ease;
+  }
+  #barre button:hover:not(:disabled) { background: rgba(194,152,74,.2); transform: scale(1.08); }
+  #barre button:disabled { opacity: .28; cursor: default; }
+  #compteur {
+    color: rgba(239,225,194,.72); font-size: .76rem;
+    letter-spacing: .14em; min-width: 4.4rem; text-align: center;
+  }
+
+  /* ═════════════════ mode édition ═════════════════ */
+  #atelier {
+    position: fixed; top: clamp(.4rem, 1.5vh, .9rem); left: 50%;
+    transform: translateX(-50%); z-index: 950;
+    display: flex; align-items: center; gap: .55rem;
+    padding: .34rem .4rem .34rem .85rem; border-radius: 999px;
+    background: rgba(12,7,4,.62); backdrop-filter: blur(12px);
+    border: 1px solid rgba(194,152,74,.3);
+    font-family: -apple-system, 'Helvetica Neue', sans-serif;
+    font-size: .7rem; color: rgba(239,225,194,.8);
+    letter-spacing: .06em; white-space: nowrap;
+  }
+  #atelier b { color: var(--or); font-weight: 600; }
+  #enregistrer {
+    padding: .42rem .85rem; border-radius: 999px; cursor: pointer;
+    background: var(--or); border: 0; color: #2a1a08;
+    font-family: inherit; font-size: .7rem; font-weight: 700; letter-spacing: .06em;
+    transition: background .2s ease, transform .2s ease;
+  }
+  #enregistrer:hover { background: var(--or-clair); transform: scale(1.04); }
+
+  /* ═════════════════ la fermeture et la lettre ═════════════════ */
+  /* pendant le refermage, chaque page bascule bien plus vite : les pages
+     se chevauchent et donnent l'effet d'un livre qu'on referme d'un geste */
+  #livre.referme { --tour: .5s; }
+
+  #lettre {
+    position: fixed; inset: 0; z-index: 2500;
+    display: flex; align-items: center; justify-content: center;
+    padding: 1.5rem; overflow-y: auto; opacity: 0;
+    background: radial-gradient(125% 95% at 50% 50%, rgba(11,8,6,.88), rgba(4,3,3,.97));
+    transition: opacity 1.2s ease;
+  }
+  #lettre.la { opacity: 1; }
+  #lettre[hidden] { display: none; }
+
+  #lettre .feuille {
+    position: relative; width: 100%; max-width: 31rem; text-align: center;
+    padding: clamp(2.4rem, 8vw, 3.6rem) clamp(1.7rem, 6vw, 3rem);
+    border-radius: 2px; opacity: 0;
+    background:
+      radial-gradient(80% 55% at 30% 15%, rgba(255,252,240,.7), transparent 60%),
+      linear-gradient(158deg, var(--parchemin), var(--parchemin2) 58%, #d6c096);
+    box-shadow: 0 44px 96px -30px rgba(0,0,0,.92), inset 0 0 64px rgba(120,84,40,.24);
+    transform: translateY(52px) scale(.92) rotate(-1.6deg);
+  }
+  /* les plis d'une lettre qu'on vient de deplier */
+  #lettre .feuille::before {
+    content: ''; position: absolute; inset: 0; pointer-events: none;
+    background:
+      linear-gradient(180deg, transparent 32.4%, rgba(120,84,40,.13) 33%, transparent 33.6%),
+      linear-gradient(180deg, transparent 66.4%, rgba(120,84,40,.13) 67%, transparent 67.6%);
+  }
+  #lettre.la .feuille { animation: deplier 1.6s cubic-bezier(.2,.75,.25,1) .4s forwards; }
+
+  #lettre .cachet {
+    display: block; font-size: 1.5rem; color: var(--or);
+    margin-bottom: 1.5rem; opacity: 0;
+  }
+  #lettre.la .cachet { animation: venir .9s 1.5s both; }
+
+  .mot-lettre {
+    font-family: 'Bradley Hand', 'Segoe Print', 'Snell Roundhand', 'Apple Chancery', cursive;
+    font-size: clamp(1.15rem, 4.6vw, 1.55rem); line-height: 1.55;
+    color: var(--encre); white-space: pre-wrap; opacity: 0;
+  }
+  #lettre.la .mot-lettre { animation: venir 1.3s 1.75s both; }
+
+  #relire {
+    margin-top: 2.4rem; padding: .7rem 1.5rem; border-radius: 999px;
+    cursor: pointer; background: transparent;
+    border: 1px solid rgba(120,84,40,.42); color: var(--encre-pale);
+    font-family: -apple-system, 'Helvetica Neue', sans-serif;
+    font-size: .66rem; letter-spacing: .2em; text-transform: uppercase;
+    opacity: 0; transition: background .25s ease, color .25s ease;
+  }
+  #relire:hover { background: rgba(120,84,40,.12); color: var(--encre); }
+  #lettre.la #relire { animation: venir 1s 2.9s both; }
+
+  @keyframes deplier {
+    0%   { opacity: 0; transform: translateY(52px) scale(.92) rotate(-1.6deg); }
+    62%  { opacity: 1; transform: translateY(-7px) scale(1.012) rotate(.45deg); }
+    100% { opacity: 1; transform: none; }
+  }
+
+  /* ═════════════════ musique ═════════════════ */
+  #bouton-musique {
+    position: fixed; left: clamp(.7rem, 2.5vw, 1.2rem);
+    bottom: clamp(.7rem, 2.5vw, 1.2rem); z-index: 2100;
+    width: 2.7rem; height: 2.7rem; border-radius: 50%; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(12,7,4,.72); backdrop-filter: blur(12px);
+    border: 1px solid rgba(194,152,74,.4); color: var(--or);
+    font-size: 1rem; line-height: 1;
+    transition: transform .25s ease, background .25s ease, opacity .3s ease;
+  }
+  #bouton-musique[hidden] { display: none; }
+  #bouton-musique:hover { transform: scale(1.09); background: rgba(194,152,74,.2); }
+  #bouton-musique.muette { opacity: .45; }
+  /* tant qu'elle n'a pas demarre, le bouton appelle l'oeil */
+  #bouton-musique.propose { animation: pulse 2.6s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(194,152,74,.34); }
+                      70%     { box-shadow: 0 0 0 14px rgba(194,152,74,0); } }
+
+  #bulle {
+    position: fixed; left: 50%; bottom: 4.6rem; transform: translate(-50%, 14px);
+    z-index: 960; padding: .6rem 1.1rem; border-radius: 999px;
+    background: rgba(12,7,4,.9); border: 1px solid rgba(194,152,74,.42);
+    color: var(--or-clair); font-family: -apple-system, sans-serif; font-size: .76rem;
+    opacity: 0; pointer-events: none; transition: opacity .3s ease, transform .3s ease;
+  }
+  #bulle.on { opacity: 1; transform: translate(-50%, 0); }
+
+  /* ═════════════════ le portail (sceau, mot de passe, avis) ═════════════════ */
+  body.scelle #barre, body.scelle #atelier { display: none; }
+
+  #portail {
+    position: fixed; inset: 0; z-index: 2000;
+    display: flex; align-items: center; justify-content: center;
+    padding: 1.5rem; overflow-y: auto;
+    background:
+      radial-gradient(120% 90% at 50% 44%, #23150e 0%, #0d0806 58%, #050303 100%);
+    transition: opacity 1s ease;
+  }
+  #portail.parti { opacity: 0; pointer-events: none; }
+
+  #portail .voile {
+    position: absolute; inset: 0; pointer-events: none; opacity: 0;
+    background: radial-gradient(closest-side at 50% 50%, rgba(255,238,200,.98), rgba(214,170,90,.55) 45%, transparent 72%);
+  }
+
+  .etape {
+    position: relative; z-index: 2;
+    display: flex; flex-direction: column; align-items: center;
+    text-align: center; max-width: 30rem; width: 100%;
+    animation: venir .9s cubic-bezier(.2,.7,.3,1) both;
+  }
+  .etape[hidden] { display: none; }
+
+  .sceau {
+    position: relative;
+    width: 4.6rem; height: 4.6rem; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.7rem; color: var(--or);
+    background: transparent;                    /* sinon le <button> se grise */
+    border: 1px solid rgba(194,152,74,.5);
+    box-shadow: 0 0 0 7px rgba(194,152,74,.07), inset 0 0 26px rgba(194,152,74,.16);
+    margin-bottom: 1.7rem;
+    animation: halo 3.4s ease-in-out infinite;
+  }
+
+  /* ── le sceau sur lequel on appuie ── */
+  button.sceau { cursor: pointer; font-family: inherit; transition: transform .25s ease; }
+  button.sceau:hover { transform: scale(1.07); }
+  button.sceau:active { transform: scale(.96); }
+  #e-attente .sceau { margin-bottom: 1.05rem; }
+
+  button.sceau .onde {
+    position: absolute; inset: -1px; border-radius: 50%;
+    border: 1px solid var(--or); opacity: 0; pointer-events: none;
+  }
+  button.sceau.touche .onde { animation: onde 1.5s cubic-bezier(.2,.6,.3,1) forwards; }
+
+  .p-appel {
+    margin-bottom: 1.5rem;
+    font-family: -apple-system, 'Helvetica Neue', sans-serif;
+    font-size: .63rem; letter-spacing: .34em; text-transform: uppercase;
+    color: var(--or); margin-left: .34em;
+    animation: respire 2.4s ease-in-out infinite;
+  }
+  .p-voeu {
+    margin-bottom: 1.6rem;
+    font-size: clamp(1.15rem, 5vw, 1.62rem);
+    color: var(--or-clair); line-height: 1.3;
+    text-shadow: 0 0 28px rgba(230,200,128,.42);
+    animation: venir 1s cubic-bezier(.2,.7,.3,1) both;
+  }
+  .p-appel[hidden], .p-voeu[hidden] { display: none; }
+
+  .p-sur {
+    font-family: -apple-system, 'Helvetica Neue', sans-serif;
+    font-size: .64rem; letter-spacing: .42em; text-transform: uppercase;
+    color: var(--or); margin-left: .42em;
+  }
+  .p-titre {
+    font-size: clamp(1.6rem, 6.4vw, 2.5rem); font-weight: 400;
+    color: var(--parchemin); margin: .5rem 0 1.7rem; line-height: 1.2;
+  }
+  .p-note {
+    margin-top: 1.7rem; color: rgba(239,225,194,.5);
+    font-style: italic; font-size: .92rem;
+  }
+  .p-avis {
+    font-size: clamp(1.1rem, 4.4vw, 1.42rem); line-height: 1.6;
+    color: var(--parchemin); max-width: 24em; margin-bottom: 2.3rem;
+  }
+
+  /* ── le compteur ── */
+  .compte { display: flex; gap: clamp(.4rem, 2.4vw, 1rem); }
+  .compte > div {
+    min-width: clamp(3.7rem, 18vw, 5rem);
+    padding: .85rem .3rem .6rem; border-radius: 4px;
+    background: linear-gradient(170deg, rgba(194,152,74,.14), rgba(194,152,74,.03));
+    border: 1px solid rgba(194,152,74,.26);
+  }
+  .compte b {
+    display: block; font-weight: 400;
+    font-size: clamp(1.6rem, 8vw, 2.4rem); line-height: 1;
+    color: var(--or-clair); font-variant-numeric: tabular-nums;
+    text-shadow: 0 0 22px rgba(230,200,128,.4);
+  }
+  .compte span {
+    display: block; margin-top: .5rem;
+    font-family: -apple-system, 'Helvetica Neue', sans-serif;
+    font-size: .55rem; letter-spacing: .2em; text-transform: uppercase;
+    color: rgba(239,225,194,.42);
+  }
+  .compte b.bat { animation: bat .5s ease; }
+
+  /* ── mot de passe ── */
+  #f-mdp { display: flex; flex-direction: column; gap: .9rem; width: min(100%, 21rem); }
+  #mdp {
+    width: 100%; padding: .95rem 1rem; border-radius: 4px; text-align: center;
+    background: rgba(239,225,194,.05); color: var(--parchemin);
+    border: 1px solid rgba(194,152,74,.38); outline: none;
+    font-family: inherit; font-size: 1.05rem; letter-spacing: .16em;
+    text-transform: uppercase;
+    transition: border-color .25s ease, box-shadow .25s ease;
+  }
+  #mdp:focus { border-color: var(--or); box-shadow: 0 0 0 3px rgba(194,152,74,.16); }
+  #mdp::placeholder { color: rgba(239,225,194,.22); letter-spacing: .3em; }
+
+  #f-mdp button, #avis-ok {
+    padding: .85rem 1.6rem; border-radius: 999px; cursor: pointer;
+    background: var(--or); border: 0; color: #2a1a08;
+    font-family: -apple-system, 'Helvetica Neue', sans-serif;
+    font-size: .76rem; font-weight: 700; letter-spacing: .16em; text-transform: uppercase;
+    transition: background .2s ease, transform .2s ease;
+  }
+  #f-mdp button:hover, #avis-ok:hover { background: var(--or-clair); transform: scale(1.04); }
+  #avis-ok { padding-left: 2.2rem; padding-right: 2.2rem; }
+
+  .p-erreur {
+    margin-top: 1rem; color: #d98a6a; font-size: .84rem;
+    font-family: -apple-system, sans-serif; visibility: hidden;
+  }
+  .p-erreur.on { visibility: visible; }
+  #f-mdp.faux { animation: secousse .45s cubic-bezier(.36,.07,.19,.97); }
+
+  /* ── le rituel d'ouverture ── */
+  .rituel { position: relative; width: 15rem; height: 15rem; }
+  .rituel .anneau {
+    position: absolute; inset: 0; margin: auto;
+    width: 6rem; height: 6rem; border-radius: 50%;
+    border: 1px solid var(--or); opacity: 0;
+    animation: onde 2.1s cubic-bezier(.2,.6,.3,1) forwards;
+  }
+  .rituel .anneau:nth-child(2) { animation-delay: .26s; }
+  .rituel .anneau:nth-child(3) { animation-delay: .52s; }
+  .rituel .astre {
+    position: absolute; inset: 0; display: flex;
+    align-items: center; justify-content: center;
+    font-size: 3.4rem; color: var(--or-clair);
+    animation: eclat 2.1s cubic-bezier(.3,.05,.2,1) forwards;
+  }
+
+  /* ── l'arrivee du livre ── */
+  #livre.apparait { animation: reveler 1.5s cubic-bezier(.2,.7,.3,1) both; }
+
+  @keyframes venir    { from { opacity:0; transform: translateY(18px); } to { opacity:1; transform:none; } }
+  @keyframes halo     { 0%,100% { box-shadow: 0 0 0 7px rgba(194,152,74,.07), inset 0 0 26px rgba(194,152,74,.16); }
+                         50%     { box-shadow: 0 0 0 15px rgba(194,152,74,0),   inset 0 0 34px rgba(194,152,74,.3); } }
+  @keyframes bat      { 0% { transform: scale(1); } 40% { transform: scale(1.16); } 100% { transform: scale(1); } }
+  @keyframes secousse { 10%,90% { transform: translateX(-2px); } 20%,80% { transform: translateX(4px); }
+                         30%,50%,70% { transform: translateX(-8px); } 40%,60% { transform: translateX(8px); } }
+  @keyframes onde     { 0%   { opacity:0; transform: scale(.25); border-width: 2px; }
+                         28%  { opacity:.95; }
+                         100% { opacity:0; transform: scale(3.6); border-width: .5px; } }
+  @keyframes eclat    { 0%   { opacity:0; transform: scale(.3) rotate(-70deg); filter: blur(9px); }
+                         42%  { opacity:1; transform: scale(1.15) rotate(0deg); filter: blur(0); }
+                         100% { opacity:0; transform: scale(9) rotate(30deg); filter: blur(3px); } }
+  @keyframes inonder  { 0% { opacity:0; transform: scale(.5); }
+                         55% { opacity:1; transform: scale(2.4); }
+                         100% { opacity:0; transform: scale(4.4); } }
+  @keyframes reveler  { from { opacity:0; transform: scale(.88) translateY(26px); filter: blur(14px); }
+                         to   { opacity:1; transform:none; filter: blur(0); } }
+
+  @keyframes lettre  { from { opacity:0; transform: translateY(.35em) rotate(3deg); filter: blur(7px); }
+                        to   { opacity:1; transform:none; filter: blur(0); } }
+  @keyframes respire { 0%,100% { opacity:.45; } 50% { opacity:1; } }
+
+  @media (max-width: 700px) {
+    #livre { width: 96vw; height: 82svh; }
+    .zone { width: 22%; }
+    #atelier { font-size: .64rem; padding-left: .7rem; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .page { transition-duration: .01ms; }
+    .prenom span { opacity: 1; animation: none; }
+    .invite { animation: none; opacity: 1; }
+  }
+</style>
+</head>
+<body class="scelle">
+
+<div id="portail">
+  <div class="voile"></div>
+
+  <section class="etape" id="e-attente">
+    <button class="sceau" id="sceau-appui" type="button">
+      <span class="onde"></span>&#10022;
+    </button>
+    <p class="p-appel" id="p-appel"></p>
+    <p class="p-voeu" id="p-voeu" hidden></p>
+    <p class="p-sur">Ce grimoire est scellé</p>
+    <h2 class="p-titre">Il s'ouvrira dans</h2>
+    <div class="compte">
+      <div><b id="c-j">00</b><span>jours</span></div>
+      <div><b id="c-h">00</b><span>heures</span></div>
+      <div><b id="c-m">00</b><span>minutes</span></div>
+      <div><b id="c-s">00</b><span>secondes</span></div>
+    </div>
+    <p class="p-note" id="p-date"></p>
+  </section>
+
+  <section class="etape" id="e-mdp" hidden>
+    <div class="sceau">&#128274;</div>
+    <p class="p-sur">Le sceau est levé</p>
+    <h2 class="p-titre">Mot de passe</h2>
+    <form id="f-mdp" autocomplete="off">
+      <input id="mdp" type="text" inputmode="text" autocomplete="off"
+             autocapitalize="characters" autocorrect="off" spellcheck="false"
+             placeholder="· · · · · · ·" aria-label="Mot de passe">
+      <button type="submit">Ouvrir</button>
+    </form>
+    <p class="p-erreur" id="err-mdp">Ce n'est pas le bon mot de passe.</p>
+  </section>
+
+  <section class="etape" id="e-avis" hidden>
+    <div class="sceau">&#9888;</div>
+    <p class="p-sur" id="avis-num"></p>
+    <p class="p-avis" id="avis-txt"></p>
+    <button id="avis-ok" type="button">Je continue</button>
+  </section>
+
+  <section class="etape" id="e-rituel" hidden>
+    <div class="rituel">
+      <span class="anneau"></span>
+      <span class="anneau"></span>
+      <span class="anneau"></span>
+      <span class="astre">&#10022;</span>
+    </div>
+  </section>
+</div>
+
+<div id="livre">
+
+
+  <button class="zone prec" aria-label="Page precedente"></button>
+  <button class="zone suiv" aria-label="Page suivante"></button>
+</div>
+
+<div id="lettre" hidden>
+  <div class="feuille">
+    <span class="cachet">&#10022;</span>
+    <p class="mot-lettre" id="mot-lettre"></p>
+    <button id="relire" type="button">Relire le grimoire</button>
+  </div>
+</div>
+
+<audio id="ambiance" loop preload="auto"></audio>
+<button id="bouton-musique" type="button" hidden aria-label="Musique"></button>
+
+<nav id="barre">
+  <button id="btn-prec" aria-label="Page precedente">&#8249;</button>
+  <span id="compteur"></span>
+  <button id="btn-suiv" aria-label="Page suivante">&#8250;</button>
+</nav>
+
+<div id="bulle"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  var EDITION      = false;
+  var ENTETE       = "\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2557\n\u2551            TES MESSAGES \u2014 ecrits directement depuis le site           \u2551\n\u255a\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255d\n\nTu peux tout ecrire sur le site : ouvre index.html, touche un texte, tape.\nCe fichier-ci n'est que la sauvegarde de ce que tu as ecrit.\n\n  \u2022 Enlever une photo   \u2192  mets un  #  tout au debut de sa ligne\n  \u2022 Changer l'ordre      \u2192  deplace la ligne plus haut ou plus bas\n  \u2022 MODE-EDITION | non   \u2192  verrouille les textes (version cadeau, finale)\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n";
+  var EMPREINTE    = "d6601d3f8483";
+  var OUVERTURE    = "2026-08-11 20:30";
+  var PHRASE       = "Une surprise qui, je pense, ne te laissera pas indiff\u00e9rente.";
+  var APPEL        = "Appuyer ici";
+  var VOEU         = "Un tr\u00e8s joyeux anniversaire";
+  var LETTRE       = '';        // rempli au dechiffrement, jamais en clair
+  var SEL          = "";
+  var SCEAU        = "";       // empreinte du mot de passe, pas le mot de passe
+  var SHA_K        = [];
+  var CHIFFRE      = true;     // version en ligne : le contenu est dans livre.bin
+  var SEL_HEX      = "eb3fcc4584d7b23325cd746e35853a99";
+  var ITERATIONS   = 250000;
+  var NOM_LIVRE    = "livre.bin";
+  var MUSIQUE      = "ambiance.mp3";
+  var AVIS_1       = "Es-tu s\u00fbre de vouloir lire ce qui va suivre ?";
+  var AVIS_2       = "Des larmes peuvent appara\u00eetre au cours de la lecture.";
+  var AVIS_3       = "Toute action physique \u2014 c\u00e2lin, bisou ou autre \u2014 peut g\u00eaner l'auteur de ce livre. Mais le c\u0153ur y est.";
+
+  var livre  = document.getElementById('livre');
+  var pages  = [];           // vide tant que le livre n'est pas la (version chiffree)
+  var N      = 0;
+  var videos = [];
+  var cour   = 0;            // nombre de pages deja tournees
+  var occupe = false;
+  var ouvert = false;        // tant que le sceau tient, le livre ne bouge pas
+
+  /* ── empilement : une page tournee passe a gauche, sous les suivantes ── */
+  function empiler() {
+    pages.forEach(function (p, i) {
+      p.style.zIndex = p.classList.contains('tournee') ? i : (N - i);
+    });
+  }
+
+  /* ── on ne garde en memoire que les pages proches (fluidite + photos) ── */
+  function alleger() {
+    pages.forEach(function (p, i) {
+      var proche = Math.abs(i - cour) <= 2;
+      p.classList.toggle('loin', !proche);
+      if (proche) {
+        p.querySelectorAll('[data-src]').forEach(function (m) {
+          m.src = m.getAttribute('data-src');
+          m.removeAttribute('data-src');
+        });
+        p.querySelectorAll('[data-enc]').forEach(ouvrirMedia);
+      }
+    });
+  }
+
+  /* un media chiffre : on le rapatrie, on le dechiffre, on le donne
+     a la balise sous forme de Blob. Le fichier reste illisible sur le serveur. */
+  function ouvrirMedia(m) {
+    var nom = m.getAttribute('data-enc');
+    m.removeAttribute('data-enc');                 // une seule fois par media
+    dechiffrer(nom).then(function (octets) {
+      var type = (m.tagName === 'VIDEO') ? 'video/mp4' : 'image/jpeg';
+      m.src = URL.createObjectURL(new Blob([octets], { type: type }));
+      // la video peut finir de se dechiffrer apres l'arrivee sur sa page :
+      // sans ce rappel, la lecture automatique aurait echoue dans le vide.
+      if (m.tagName === 'VIDEO' && ouvert) lireVideos();
+    }).catch(function () {
+      m.setAttribute('data-enc', nom);             // on pourra reessayer
+    });
+  }
+
+  function compter() {
+    var c = document.getElementById('compteur');
+    if (!N) return;
+    // N pages = couverture + (N-2) souvenirs + mot de la fin
+    c.textContent = cour === 0 ? 'Couverture'
+                  : (cour >= N - 1 ? 'Fin' : cour + ' / ' + (N - 2));
+    document.getElementById('btn-prec').disabled = (cour === 0);
+    document.getElementById('btn-suiv').disabled = (cour >= N - 1);
+  }
+
+  function tourner(sens) {
+    if (occupe || !ouvert) return;
+    var i = sens > 0 ? cour : cour - 1;
+    if (i < 0 || i >= N - (sens > 0 ? 1 : 0)) return;
+    if (sens > 0 && cour >= N - 1) return;
+
+    var p = pages[i];
+    occupe = true;
+    p.style.zIndex = N + 2;               // la page en vol passe au-dessus de tout
+    p.classList.toggle('tournee', sens > 0);
+    cour += sens;
+    alleger();
+    compter();
+    lireVideos();
+    guetterLaFin();
+    setTimeout(function () { empiler(); occupe = false; }, 1080);
+  }
+
+  /* ═══════════ la fermeture, puis la lettre ═══════════
+     Arrivee sur la derniere page, on laisse le temps de la lire, puis les
+     pages se rabattent l'une apres l'autre et la lettre se deplie. */
+  var minuteurFin = null;
+  var enFermeture = false;
+  var lettre      = document.getElementById('lettre');
+
+  function guetterLaFin() {
+    clearTimeout(minuteurFin);
+    if (!ouvert || enFermeture || !N) return;
+    if (cour >= N - 1) minuteurFin = setTimeout(refermer, 7000);
+  }
+
+  function refermer() {
+    if (enFermeture || !ouvert) return;
+    enFermeture = true;
+
+    videos.forEach(function (v) { if (!v.paused) v.pause(); });
+    doserMusique(false);
+
+    livre.classList.add('referme');
+    var PAS = 70, rang = 0;
+    for (var i = cour - 1; i >= 0; i--) {
+      (function (idx, r) {
+        setTimeout(function () {
+          pages[idx].classList.remove('tournee');
+          pages[idx].classList.remove('loin');
+          pages[idx].style.zIndex = N - idx;
+        }, r * PAS);
+      })(i, rang++);
+    }
+
+    setTimeout(function () {
+      livre.classList.remove('referme');
+      cour = 0;
+      empiler(); alleger(); compter();
+      if (!LETTRE) { enFermeture = false; return; }
+      lettre.hidden = false;
+      void lettre.offsetWidth;
+      lettre.classList.add('la');
+    }, rang * PAS + 900);
+  }
+
+  document.getElementById('relire').addEventListener('click', function () {
+    lettre.classList.remove('la');
+    setTimeout(function () {
+      lettre.hidden = true;
+      enFermeture = false;
+    }, 1200);
+  });
+
+  /* ── commandes ── */
+  livre.querySelector('.zone.suiv').addEventListener('click', function () { tourner(1); });
+  livre.querySelector('.zone.prec').addEventListener('click', function () { tourner(-1); });
+  document.getElementById('btn-suiv').addEventListener('click', function () { tourner(1); });
+  document.getElementById('btn-prec').addEventListener('click', function () { tourner(-1); });
+
+  addEventListener('keydown', function (e) {
+    if (e.target.isContentEditable) return;          // on ecrit : pas de tournage
+    if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); tourner(1); }
+    if (e.key === 'ArrowLeft') { e.preventDefault(); tourner(-1); }
+  });
+
+  var x0 = null, y0 = null;
+  livre.addEventListener('touchstart', function (e) {
+    x0 = e.touches[0].clientX; y0 = e.touches[0].clientY;
+  }, { passive: true });
+  livre.addEventListener('touchend', function (e) {
+    if (x0 === null || e.target.isContentEditable) { x0 = null; return; }
+    var dx = e.changedTouches[0].clientX - x0;
+    var dy = e.changedTouches[0].clientY - y0;
+    if (Math.abs(dx) > 52 && Math.abs(dx) > Math.abs(dy) * 1.4) tourner(dx < 0 ? 1 : -1);
+    x0 = null;
+  }, { passive: true });
+
+  /* ═══════════ la video se lance toute seule ═══════════
+     Les navigateurs refusent une lecture automatique avec le son. On tente
+     donc avec le son ; si c'est refuse, on rejoue en silencieux et on
+     propose un bouton pour le remettre. */
+  /* la musique s'efface pendant la video, sinon les deux sons se marchent
+     dessus ; elle remonte des qu'on quitte la page. */
+  function doserMusique(videoEnCours) {
+    if (!MUSIQUE || piste.paused) return;
+    piste.volume = videoEnCours ? 0.05 : VOLUME;
+  }
+
+  function lireVideos() {
+    var uneJoue = false;
+    videos.forEach(function (v) {
+      var page = v.closest('.page');
+      var bouton = page.querySelector('.son');
+      if (pages.indexOf(page) !== cour) {
+        if (!v.paused) v.pause();
+        try { v.currentTime = 0; } catch (e) {}
+        return;
+      }
+      uneJoue = true;
+      if (v.getAttribute('data-src')) {
+        v.src = v.getAttribute('data-src');
+        v.removeAttribute('data-src');
+      }
+      var essai = v.play();
+      if (essai && essai.catch) {
+        essai.catch(function () {
+          v.muted = true;
+          if (bouton) bouton.hidden = false;
+          v.play().catch(function () {});   // refus total : les controles restent
+        });
+      }
+    });
+    doserMusique(uneJoue);
+  }
+
+  /* ═══════════ mise en route du livre ═══════════
+     Appelee tout de suite en local, mais seulement APRES le dechiffrement
+     pour la version en ligne : la-bas, #livre est vide au chargement. */
+  function demarrerLivre() {
+    pages  = [].slice.call(livre.querySelectorAll('.page'));
+    N      = pages.length;
+    videos = [].slice.call(livre.querySelectorAll('video'));
+
+    var porteur = document.getElementById('texte-lettre');
+    LETTRE = porteur ? porteur.textContent : '';
+    document.getElementById('mot-lettre').textContent = LETTRE;
+
+    /* le prenom, lettre par lettre */
+    var h1 = document.getElementById('prenom');
+    if (h1) {
+      var mot = h1.textContent.trim();
+      h1.textContent = '';
+      mot.split('').forEach(function (c, i) {
+        var s = document.createElement('span');
+        if (c === ' ') { s.innerHTML = '&nbsp;'; } else { s.textContent = c; }
+        s.style.animationDelay = (0.35 + i * 0.08) + 's';
+        h1.appendChild(s);
+      });
+    }
+
+    videos.forEach(function (v) {
+      // la musique suit la video au plus pres : elle remonte des que la
+      // video se termine, sans attendre qu'on tourne la page.
+      v.addEventListener('play',  function () { doserMusique(true); });
+      v.addEventListener('pause', function () { doserMusique(false); });
+      v.addEventListener('ended', function () { doserMusique(false); });
+
+      var bouton = v.closest('.page').querySelector('.son');
+      if (!bouton) return;
+      bouton.addEventListener('click', function (e) {
+        e.stopPropagation();
+        v.muted = false;
+        v.play().catch(function () {});
+        bouton.hidden = true;
+      });
+    });
+
+    empiler(); alleger(); compter();
+  }
+
+  if (!CHIFFRE) demarrerLivre();
+
+  /* ═══════════ la musique ═══════════
+     Elle accompagne deja l'ecran du compteur, puis repart du debut au
+     moment ou le grimoire s'ouvre. Un navigateur refuse le son tant que
+     personne n'a touche la page : dans ce cas le bouton se met a pulser
+     et le premier geste, quel qu'il soit, la lance. */
+  var piste   = document.getElementById('ambiance');
+  var boutonM = document.getElementById('bouton-musique');
+  var VOLUME  = 0.34;
+  var coupee  = false;
+
+  function dessinerBouton() {
+    var eteinte = piste.paused || coupee || piste.muted;
+    boutonM.innerHTML = eteinte ? '&#119070;' : '&#9835;';
+    boutonM.classList.toggle('muette', eteinte);
+  }
+
+  function lancerMusique(depuisLeDebut) {
+    if (!MUSIQUE || coupee) return Promise.resolve(false);
+    if (depuisLeDebut) { try { piste.currentTime = 0; } catch (e) {} }
+    piste.volume = VOLUME;
+    var p = piste.play();
+    if (!p || !p.then) { dessinerBouton(); return Promise.resolve(true); }
+    return p.then(function () {
+      boutonM.classList.remove('propose');
+      dessinerBouton();
+      return true;
+    }).catch(function () {
+      // Le navigateur a refuse le son. Une lecture SILENCIEUSE, elle, est
+      // toujours autorisee : on demarre donc muet et le premier geste n'aura
+      // plus qu'a remettre le son. La musique tourne deja, elle ne demarre pas.
+      piste.muted = true;
+      piste.play().catch(function () {});
+      boutonM.classList.add('propose');
+      dessinerBouton();
+      return false;
+    });
+  }
+
+  if (MUSIQUE) {
+    piste.src = MUSIQUE;
+    piste.volume = VOLUME;
+    boutonM.hidden = false;
+    dessinerBouton();
+    lancerMusique(false);
+
+    // filet : le tout premier geste rend le son (ou lance la lecture)
+    var amorce = function () {
+      if (coupee) return;
+      if (piste.muted) { piste.muted = false; piste.volume = VOLUME; }
+      if (piste.paused) piste.play().catch(function () {});
+      if (!piste.paused && !piste.muted) {
+        boutonM.classList.remove('propose');
+        dessinerBouton();
+        removeEventListener('click', amorce, true);
+        removeEventListener('keydown', amorce, true);
+        removeEventListener('touchstart', amorce, true);
+        removeEventListener('pointerdown', amorce, true);
+      }
+    };
+    addEventListener('pointerdown', amorce, true);
+    addEventListener('click', amorce, true);
+    addEventListener('keydown', amorce, true);
+    addEventListener('touchstart', amorce, true);
+
+    boutonM.addEventListener('click', function (e) {
+      e.stopPropagation();
+      if (piste.paused || piste.muted) {
+        coupee = false; piste.muted = false;
+        boutonM.classList.remove('propose');
+        lancerMusique(false);
+      } else {
+        coupee = true; piste.pause(); dessinerBouton();
+      }
+    });
+  } else {
+    boutonM.remove();
+  }
+
+  /* ═══════════ le portail : compteur, mot de passe, avertissements ═══════════
+     Attention : tout se joue dans la page, donc ce sceau est une ceremonie,
+     pas une serrure. Il rend l'ouverture solennelle, il ne protege rien. */
+  var portail = document.getElementById('portail');
+  var etapes  = {
+    attente: document.getElementById('e-attente'),
+    mdp:     document.getElementById('e-mdp'),
+    avis:    document.getElementById('e-avis'),
+    rituel:  document.getElementById('e-rituel')
+  };
+
+  function montrer(nom) {
+    Object.keys(etapes).forEach(function (k) { etapes[k].hidden = (k !== nom); });
+  }
+
+  /* ── le sceau sur lequel on appuie ──
+     Ce geste sert deux fois : il offre le voeu, et c'est lui qui autorise
+     le navigateur a rendre le son de la musique. */
+  var sceauAppui = document.getElementById('sceau-appui');
+  var appel = document.getElementById('p-appel');
+  var voeu  = document.getElementById('p-voeu');
+
+  if (APPEL) appel.textContent = APPEL; else appel.hidden = true;
+  voeu.textContent = VOEU || '';
+
+  sceauAppui.addEventListener('click', function () {
+    sceauAppui.classList.remove('touche');
+    void sceauAppui.offsetWidth;               // relance l'onde
+    sceauAppui.classList.add('touche');
+    if (!VOEU) return;
+    appel.hidden = true;
+    voeu.hidden = false;
+    voeu.style.animation = 'none';             // et l'apparition, meme au 2e appui
+    void voeu.offsetWidth;
+    voeu.style.animation = '';
+  });
+
+  /* OUVERTURE : soit "+10s" (essai), soit "2026-08-12 20:30" (la vraie date) */
+  function quand() {
+    var t = (OUVERTURE || '').trim();
+    var rel = t.match(/^\+\s*(\d+)\s*([smhj])$/i);
+    if (rel) {
+      var n = parseInt(rel[1], 10);
+      var u = rel[2].toLowerCase();
+      var f = (u === 's' ? 1e3 : u === 'm' ? 6e4 : u === 'h' ? 36e5 : 864e5);
+      return new Date(Date.now() + n * f);
+    }
+    var abs = t.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{1,2}):(\d{2})$/);
+    if (abs) return new Date(+abs[1], +abs[2] - 1, +abs[3], +abs[4], +abs[5], 0, 0);
+    return new Date(Date.now() - 1);          // reglage illisible : on n'enferme personne
+  }
+
+  var relatif = /^\+/.test((OUVERTURE || '').trim());
+  var cible = quand();
+  var JOURS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+  var MOIS  = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet',
+               'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+
+  function deuxChiffres(n) { return (n < 10 ? '0' : '') + n; }
+
+  var boites = { j: document.getElementById('c-j'), h: document.getElementById('c-h'),
+                 m: document.getElementById('c-m'), s: document.getElementById('c-s') };
+
+  function poser(cle, valeur) {
+    var el = boites[cle], txt = deuxChiffres(valeur);
+    if (el.textContent === txt) return;
+    el.textContent = txt;
+    el.classList.remove('bat');
+    void el.offsetWidth;                       // relance l'animation
+    el.classList.add('bat');
+  }
+
+  // PHRASE-COMPTEUR remplace l'annonce de la date : on garde le mystere,
+  // le decompte suffit a dire quand. Sans reglage, on annonce la date.
+  var ligneDate = document.getElementById('p-date');
+  if (PHRASE) {
+    ligneDate.textContent = PHRASE;
+  } else if (relatif) {
+    ligneDate.textContent = 'Encore un tout petit peu de patience.';
+  } else {
+    ligneDate.textContent =
+      'Rendez-vous le ' + JOURS[cible.getDay()] + ' ' + cible.getDate() + ' ' +
+      MOIS[cible.getMonth()] + ' à ' + cible.getHours() + 'h' + deuxChiffres(cible.getMinutes()) + '.';
+  }
+
+  var minuteur = setInterval(battre, 250);
+  battre();
+
+  function battre() {
+    var reste = cible.getTime() - Date.now();
+    if (reste <= 0) {
+      clearInterval(minuteur);
+      poser('j', 0); poser('h', 0); poser('m', 0); poser('s', 0);
+      setTimeout(function () { montrer('mdp'); document.getElementById('mdp').focus(); }, 700);
+      return;
+    }
+    var s = Math.floor(reste / 1000);
+    poser('j', Math.floor(s / 86400));
+    poser('h', Math.floor(s % 86400 / 3600));
+    poser('m', Math.floor(s % 3600 / 60));
+    poser('s', s % 60);
+  }
+
+  /* ── mot de passe ──
+     SHA-256 ecrit a la main : celui du navigateur (crypto.subtle) n'existe
+     qu'en https, or le livre doit aussi marcher en double-clic depuis le
+     disque. La page ne contient que l'empreinte, jamais le mot de passe. */
+  function sha256(texte) {
+    function rotr(x, n) { return (x >>> n) | (x << (32 - n)); }
+    var H = [0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
+             0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19];
+    var o = [], i, c;
+    for (i = 0; i < texte.length; i++) {        // encodage UTF-8
+      c = texte.charCodeAt(i);
+      if (c < 128) o.push(c);
+      else if (c < 2048) o.push(192 | (c >> 6), 128 | (c & 63));
+      else o.push(224 | (c >> 12), 128 | ((c >> 6) & 63), 128 | (c & 63));
+    }
+    var bits = o.length * 8;
+    o.push(0x80);
+    while (o.length % 64 !== 56) o.push(0);
+    o.push(0, 0, 0, 0, (bits >>> 24) & 255, (bits >>> 16) & 255, (bits >>> 8) & 255, bits & 255);
+
+    var w = new Array(64), t;
+    for (i = 0; i < o.length; i += 64) {
+      for (t = 0; t < 16; t++) {
+        w[t] = (o[i + t * 4] << 24) | (o[i + t * 4 + 1] << 16) |
+               (o[i + t * 4 + 2] << 8) | o[i + t * 4 + 3];
+      }
+      for (t = 16; t < 64; t++) {
+        var s0 = rotr(w[t - 15], 7) ^ rotr(w[t - 15], 18) ^ (w[t - 15] >>> 3);
+        var s1 = rotr(w[t - 2], 17) ^ rotr(w[t - 2], 19) ^ (w[t - 2] >>> 10);
+        w[t] = (w[t - 16] + s0 + w[t - 7] + s1) | 0;
+      }
+      var a = H[0], b = H[1], c2 = H[2], d = H[3],
+          e = H[4], f = H[5], g = H[6], h = H[7];
+      for (t = 0; t < 64; t++) {
+        var S1 = rotr(e, 6) ^ rotr(e, 11) ^ rotr(e, 25);
+        var ch = (e & f) ^ (~e & g);
+        var t1 = (h + S1 + ch + SHA_K[t] + w[t]) | 0;
+        var S0 = rotr(a, 2) ^ rotr(a, 13) ^ rotr(a, 22);
+        var mj = (a & b) ^ (a & c2) ^ (b & c2);
+        var t2 = (S0 + mj) | 0;
+        h = g; g = f; f = e; e = (d + t1) | 0;
+        d = c2; c2 = b; b = a; a = (t1 + t2) | 0;
+      }
+      H[0] = (H[0] + a) | 0;  H[1] = (H[1] + b) | 0;
+      H[2] = (H[2] + c2) | 0; H[3] = (H[3] + d) | 0;
+      H[4] = (H[4] + e) | 0;  H[5] = (H[5] + f) | 0;
+      H[6] = (H[6] + g) | 0;  H[7] = (H[7] + h) | 0;
+    }
+    return H.map(function (x) {
+      return ('00000000' + (x >>> 0).toString(16)).slice(-8);
+    }).join('');
+  }
+
+  /* ── dechiffrement (version en ligne) ──
+     Le serveur ne detient que des blocs illisibles. La cle vient du mot de
+     passe seul ; un mauvais mot de passe fait echouer le controle
+     d'authenticite d'AES-GCM, donc rien ne s'ouvre. */
+  var cleAes = null;
+
+  function octets(hex) {
+    var a = new Uint8Array(hex.length / 2);
+    for (var i = 0; i < a.length; i++) a[i] = parseInt(hex.substr(i * 2, 2), 16);
+    return a;
+  }
+
+  function deriverCle(motdepasse) {
+    var brut = new TextEncoder().encode(motdepasse);
+    return crypto.subtle.importKey('raw', brut, 'PBKDF2', false, ['deriveKey'])
+      .then(function (base) {
+        return crypto.subtle.deriveKey(
+          { name: 'PBKDF2', salt: octets(SEL_HEX), iterations: ITERATIONS, hash: 'SHA-256' },
+          base, { name: 'AES-GCM', length: 256 }, false, ['decrypt']);
+      });
+  }
+
+  function dechiffrer(nom) {
+    return fetch(nom).then(function (r) {
+      if (!r.ok) throw new Error('fichier absent : ' + nom);
+      return r.arrayBuffer();
+    }).then(function (buf) {
+      var u = new Uint8Array(buf);
+      return crypto.subtle.decrypt({ name: 'AES-GCM', iv: u.slice(0, 12) },
+                                   cleAes, u.slice(12));
+    });
+  }
+
+  var erreur = document.getElementById('err-mdp');
+  var formul = document.getElementById('f-mdp');
+  var valider = formul.querySelector('button');
+
+  function accepte() {
+    erreur.classList.remove('on');
+    avisNum = 0;
+    montrer('avis');
+    avisSuivant();
+  }
+
+  function refuse(message) {
+    erreur.textContent = message || 'Ce n\'est pas le bon mot de passe.';
+    erreur.classList.add('on');
+    formul.classList.remove('faux');
+    void formul.offsetWidth;
+    formul.classList.add('faux');
+  }
+
+  formul.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var saisi = document.getElementById('mdp').value.trim().toUpperCase();
+
+    if (!CHIFFRE) {                        // version locale : simple empreinte
+      if (sha256(SEL + saisi) === SCEAU) accepte(); else refuse();
+      return;
+    }
+
+    if (!window.crypto || !crypto.subtle) {
+      refuse('Ouvre le lien en https pour pouvoir dechiffrer.');
+      return;
+    }
+
+    valider.disabled = true;
+    valider.textContent = 'Ouverture…';
+    deriverCle(saisi)
+      .then(function (k) { cleAes = k; return dechiffrer(NOM_LIVRE); })
+      .then(function (buf) {
+        livre.insertAdjacentHTML('afterbegin', new TextDecoder().decode(buf));
+        demarrerLivre();
+        valider.disabled = false; valider.textContent = 'Ouvrir';
+        accepte();
+      })
+      .catch(function () {
+        cleAes = null;
+        valider.disabled = false; valider.textContent = 'Ouvrir';
+        refuse();
+      });
+  });
+
+  /* ── les avertissements, un par un ── */
+  var AVIS = [AVIS_1, AVIS_2, AVIS_3].filter(function (t) { return t && t.trim(); });
+  var avisNum = 0;
+
+  function avisSuivant() {
+    if (avisNum >= AVIS.length) { rituel(); return; }
+    document.getElementById('avis-num').textContent =
+      'Avertissement ' + (avisNum + 1) + ' sur ' + AVIS.length;
+    document.getElementById('avis-txt').textContent = AVIS[avisNum];
+    var b = document.getElementById('avis-ok');
+    b.textContent = (avisNum === AVIS.length - 1) ? 'J\'ouvre le grimoire' : 'Je continue';
+    // on relance l'animation d'arrivee a chaque avis
+    etapes.avis.style.animation = 'none';
+    void etapes.avis.offsetWidth;
+    etapes.avis.style.animation = '';
+    avisNum++;
+  }
+
+  document.getElementById('avis-ok').addEventListener('click', avisSuivant);
+
+  /* ── le rituel d'ouverture ── */
+  function rituel() {
+    montrer('rituel');
+    var voile = portail.querySelector('.voile');
+    voile.style.animation = 'inonder 1.9s cubic-bezier(.3,.05,.2,1) .35s forwards';
+
+    setTimeout(function () {
+      portail.classList.add('parti');
+      document.body.classList.remove('scelle');
+      livre.classList.add('apparait');
+      ouvert = true;
+      lancerMusique(true);        // le grimoire s'ouvre : la musique repart du debut
+      lireVideos();
+    }, 1750);
+
+    setTimeout(function () { portail.remove(); }, 3000);
+  }
+
+  /* ═══════════ mode edition ═══════════ */
+  if (!EDITION) return;
+
+  var atelier = document.createElement('div');
+  atelier.id = 'atelier';
+  atelier.innerHTML = '<span>Mode brouillon — <b>touche un texte pour l\'ecrire</b></span>' +
+                      '<button id="enregistrer">Enregistrer</button>';
+  document.body.appendChild(atelier);
+
+  var bulle = document.getElementById('bulle');
+  function dire(txt) {
+    bulle.textContent = txt; bulle.classList.add('on');
+    clearTimeout(dire._t);
+    dire._t = setTimeout(function () { bulle.classList.remove('on'); }, 2600);
+  }
+
+  var champs = [].slice.call(document.querySelectorAll('[contenteditable][data-cle]'));
+
+  // filet de securite : un vieux navigateur qui ignore "plaintext-only"
+  // rendrait le champ non modifiable. On repasse alors en mode classique.
+  champs.forEach(function (el) {
+    if (!el.isContentEditable) el.setAttribute('contenteditable', 'true');
+  });
+
+  /* Memoire locale : on ne perd rien si le navigateur se ferme.
+     Elle est etiquetee par EMPREINTE — des que MESSAGES.txt change, le
+     brouillon d'avant est jete, sinon il ecraserait les nouveaux textes. */
+  var MEM = 'grimoire-brouillon';
+  function memLire() {
+    try {
+      var o = JSON.parse(localStorage.getItem(MEM) || 'null');
+      return (o && o.emp === EMPREINTE && o.val) ? o.val : {};
+    } catch (e) { return {}; }
+  }
+  function memEcrire(v) {
+    try { localStorage.setItem(MEM, JSON.stringify({ emp: EMPREINTE, val: v })); return true; }
+    catch (e) { return false; }
+  }
+
+  var sauve = memLire();
+  var reprise = 0;
+  champs.forEach(function (el) {
+    var k = el.getAttribute('data-cle');
+    if (Object.prototype.hasOwnProperty.call(sauve, k)) { el.textContent = sauve[k]; reprise++; }
+  });
+
+  /* Relit un champ en texte simple. En tapant, le navigateur fabrique ses
+     propres <br> et <div> : on les retraduit en vrais retours a la ligne.
+     (On laisse la touche Entree au navigateur : lui seul place correctement
+     le curseur sur la nouvelle ligne.) */
+  function lireTexte(el) {
+    var out = '';
+    (function marche(n) {
+      for (var i = 0; i < n.childNodes.length; i++) {
+        var c = n.childNodes[i];
+        if (c.nodeType === 3) { out += c.data; continue; }
+        if (c.nodeType !== 1) continue;
+        if (c.tagName === 'BR') { out += '\n'; continue; }
+        var bloc = (c.tagName === 'DIV' || c.tagName === 'P');
+        if (bloc && out && out.charAt(out.length - 1) !== '\n') out += '\n';
+        marche(c);
+      }
+    })(el);
+    return out.replace(/ /g, ' ').replace(/\s+$/, '');
+  }
+
+  /* un texte long (ou sur plusieurs lignes) fait retrecir la photo.
+     On verifie ensuite pour de vrai, a l'ecran, que rien ne deborde. */
+  function ajuster(el) {
+    var p = el.closest('.page');
+    if (!p) return;
+    var t = lireTexte(el);
+    var n = t.split('\n').length;
+    p.classList.toggle('texte-long', t.length > 85 || n > 1);
+    p.classList.toggle('texte-tres-long', t.length > 160 || n > 3);
+    if (el.scrollHeight > el.clientHeight + 2) p.classList.add('texte-tres-long');
+  }
+  champs.forEach(ajuster);
+
+  champs.forEach(function (el) {
+    el.addEventListener('input', function () {
+      // contenteditable laisse parfois un <br> orphelin : la page paraitrait
+      // remplie alors qu'elle est vide, et le texte d'invite ne reviendrait pas.
+      if (!lireTexte(el).trim()) el.innerHTML = '';
+      sauve[el.getAttribute('data-cle')] = lireTexte(el);
+      memEcrire(sauve);
+      ajuster(el);
+    });
+
+    // coller du texte : on retire la mise en forme, on garde les lignes
+    el.addEventListener('paste', function (e) {
+      e.preventDefault();
+      var t = (e.clipboardData || window.clipboardData).getData('text');
+      t = t.replace(/\r\n?/g, '\n').replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n');
+      var htm = t.replace(/[&<>]/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c];
+      }).replace(/\n/g, '<br>');
+      document.execCommand('insertHTML', false, htm);
+    });
+
+    el.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') el.blur();   // Entree : laissee au navigateur
+    });
+  });
+
+  /* ── fabrique le MESSAGES.txt et le telecharge ── */
+  function texteFichier() {
+    var val = {};
+    champs.forEach(function (el) { val[el.getAttribute('data-cle')] = lireTexte(el).trim(); });
+
+    var L = [ENTETE, '', '### LA PAGE D\'ACCUEIL ###', ''];
+    function ligne(cle, txt) {
+      var p = cle.length < 32 ? cle + Array(32 - cle.length + 1).join(' ') : cle + ' ';
+      // une ligne du fichier = un souvenir : les retours a la ligne du
+      // message sont donc ecrits \n pour ne pas casser le format.
+      L.push(p + '| ' + (txt || '').replace(/\\/g, '\\\\').replace(/\n/g, '\\n'));
+    }
+    ligne('MODE-EDITION', 'oui');
+    ligne('TITRE', document.getElementById('prenom').textContent.trim());
+    ligne('SOUS-TITRE', document.querySelector('.sur-titre').textContent.trim());
+    ligne('INTRO', val['INTRO']);
+
+    L.push('', '### LES PHOTOS (dans l\'ordre du livre) ###', '');
+    pages.forEach(function (p) {
+      var lg = p.querySelector('.legende');
+      if (lg) ligne(lg.getAttribute('data-cle'), lireTexte(lg).trim());
+    });
+
+    L.push('', '### LE MOT DE LA FIN ###', '');
+    ligne('FIN-TITRE', val['FIN-TITRE']);
+    ligne('FIN-TEXTE', val['FIN-TEXTE']);
+    ligne('SIGNATURE', val['SIGNATURE']);
+    L.push('');
+    return L.join('\n');
+  }
+
+  document.getElementById('enregistrer').addEventListener('click', function () {
+    var blob = new Blob([texteFichier()], { type: 'text/plain;charset=utf-8' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'MESSAGES.txt';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
+    dire('MESSAGES.txt enregistre dans Telechargements');
+  });
+
+  if (!memEcrire(sauve)) {
+    dire('Pense a cliquer Enregistrer avant de fermer');
+  } else if (reprise) {
+    dire('Ton brouillon a ete retrouve (' + reprise + ' texte' + (reprise > 1 ? 's' : '') + ')');
+  }
+})();
+</script>
+
+</body>
+</html>
